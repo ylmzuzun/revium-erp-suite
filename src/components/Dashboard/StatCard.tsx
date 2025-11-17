@@ -11,9 +11,11 @@ interface StatCardProps {
     positive: boolean;
   };
   variant?: "default" | "primary" | "success" | "warning";
+  onClick?: () => void;
+  clickable?: boolean;
 }
 
-export const StatCard = ({ title, value, icon: Icon, trend, variant = "default" }: StatCardProps) => {
+export const StatCard = ({ title, value, icon: Icon, trend, variant = "default", onClick, clickable = false }: StatCardProps) => {
   const variantStyles = {
     default: "bg-card",
     primary: "bg-gradient-to-br from-primary to-primary/80",
@@ -24,10 +26,14 @@ export const StatCard = ({ title, value, icon: Icon, trend, variant = "default" 
   const isColored = variant !== "default";
 
   return (
-    <Card className={cn(
-      "overflow-hidden transition-all duration-300 hover:shadow-lg",
-      variantStyles[variant]
-    )}>
+    <Card 
+      className={cn(
+        "overflow-hidden transition-all duration-300 hover:shadow-lg",
+        variantStyles[variant],
+        clickable && "cursor-pointer hover:scale-105"
+      )}
+      onClick={onClick}
+    >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
