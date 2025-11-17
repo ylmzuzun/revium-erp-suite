@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,13 +28,27 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
     status: "pending",
   });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [sendEmail, setSendEmail] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !formData.title) return;
+    if (!formData.title) return;
 
     setLoading(true);
     try {
+      // Session kontrolü ve yenileme
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast.error("Oturumunuz sona erdi. Lütfen tekrar giriş yapın.");
+        setLoading(false);
+        return;
+      }
+
+      // Session'dan direkt user ID al
+      const currentUserId = session.user.id;
+      const currentUserEmail = session.user.email || "Sistem";
+
       // Görevi oluştur
       const { data: task, error: taskError } = await supabase
         .from("tasks")
@@ -43,19 +58,22 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
           priority: parseInt(formData.priority),
           due_date: formData.due_date || null,
           status: formData.status as "pending" | "in_progress" | "completed" | "cancelled",
-          created_by: user.id,
+          created_by: currentUserId,
         })
         .select()
         .single();
 
-      if (taskError) throw taskError;
+      if (taskError) {
+        console.error("Task insert error:", taskError);
+        throw new Error(taskError.message);
+      }
 
       // Seçilen kullanıcılara görev ata
       if (selectedUsers.length > 0 && task) {
         const assignments = selectedUsers.map(userId => ({
           task_id: task.id,
           assigned_to: userId,
-          assigned_by: user.id,
+          assigned_by: currentUserId,
         }));
 
         const { error: assignError } = await supabase
@@ -74,6 +92,46 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
         }));
 
         await supabase.from("notifications").insert(notifications);
+
+        // E-posta gönderimi (eğer toggle açıksa)
+        if (sendEmail) {
+          try {
+            // Atanan kullanıcıların email adreslerini al
+            const { data: assignedProfiles } = await supabase
+              .from("profiles")
+              .select("email")
+              .in("id", selectedUsers);
+
+            if (assignedProfiles && assignedProfiles.length > 0) {
+              console.log("Sending emails to:", assignedProfiles.map(p => p.email));
+              
+              // Edge function çağır
+              const { error: emailError } = await supabase.functions.invoke(
+                "send-task-notification",
+                {
+                  body: {
+                    recipientEmails: assignedProfiles.map(p => p.email),
+                    taskTitle: task.title,
+                    taskDescription: task.description,
+                    taskDueDate: task.due_date,
+                    taskPriority: task.priority,
+                    assignerName: currentUserEmail,
+                  },
+                }
+              );
+
+              if (emailError) {
+                console.error("Email sending failed:", emailError);
+                toast.warning("Görev oluşturuldu ancak e-posta gönderilemedi.");
+              } else {
+                console.log("Emails sent successfully");
+              }
+            }
+          } catch (emailError: any) {
+            console.error("Email error:", emailError);
+            // E-posta hatası görev oluşturmayı engellemez
+          }
+        }
       }
 
       toast.success("Görev başarıyla oluşturuldu!");
@@ -86,8 +144,10 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
         status: "pending",
       });
       setSelectedUsers([]);
+      setSendEmail(true);
       onTaskCreated?.();
     } catch (error: any) {
+      console.error("Full error:", error);
       toast.error("Görev oluşturulurken hata: " + error.message);
     } finally {
       setLoading(false);
@@ -183,6 +243,22 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
             <UserMultiSelect
               selectedUsers={selectedUsers}
               onSelectionChange={setSelectedUsers}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+            <div className="space-y-0.5 flex-1">
+              <Label htmlFor="send-email" className="text-base font-medium cursor-pointer">
+                E-posta Bildirimi Gönder
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Atanan kullanıcılara e-posta ile bildirim gönderilsin mi?
+              </p>
+            </div>
+            <Switch
+              id="send-email"
+              checked={sendEmail}
+              onCheckedChange={setSendEmail}
             />
           </div>
 
