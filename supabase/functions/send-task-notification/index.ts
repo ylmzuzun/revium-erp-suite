@@ -35,7 +35,11 @@ const handler = async (req: Request): Promise<Response> => {
       assignerName 
     }: TaskNotificationRequest = await req.json();
 
-    console.log("Sending task notification:", { recipientEmails, taskTitle });
+    console.log("Sending task notification:", { 
+      recipientCount: recipientEmails.length,
+      hasPriority: !!taskPriority,
+      hasDueDate: !!taskDueDate
+    });
 
     if (!recipientEmails || recipientEmails.length === 0) {
       throw new Error("No recipient emails provided");
@@ -193,10 +197,7 @@ const handler = async (req: Request): Promise<Response> => {
       .filter(r => r.status === 'rejected')
       .map(r => (r as PromiseRejectedResult).reason?.message || 'Unknown error');
 
-    console.log(`Email results: ${successful} successful, ${failed} failed`);
-    if (errors.length > 0) {
-      console.error("Email errors:", errors);
-    }
+    console.log("Email notification results:", { successful, failed, errorCount: errors.length });
 
     return new Response(
       JSON.stringify({ 
@@ -211,7 +212,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in send-task-notification function:", error);
+    console.error("Error in send-task-notification function:", error.message || "Unknown error");
     return new Response(
       JSON.stringify({ 
         success: false,
