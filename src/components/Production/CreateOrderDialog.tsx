@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Plus } from "lucide-react";
+import { CreateCustomerDialog } from "@/components/Customers/CreateCustomerDialog";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -18,28 +20,53 @@ interface CreateOrderDialogProps {
 export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrderDialogProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [showAddCustomerDialog, setShowAddCustomerDialog] = useState(false);
   const [formData, setFormData] = useState({
     order_number: `SIP-${Date.now()}`,
     product_name: "",
     quantity: "",
     unit: "Adet",
-    customer_name: "",
+    customer_id: "",
     due_date: "",
     priority: "0",
     notes: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchCustomers();
+    }
+  }, [open]);
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, company")
+        .order("name");
+      
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      toast.error("Müşteriler yüklenirken hata: " + error.message);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const selectedCustomer = customers.find(c => c.id === formData.customer_id);
+      
       const { error } = await supabase.from("production_orders").insert({
         order_number: formData.order_number,
         product_name: formData.product_name,
         quantity: parseInt(formData.quantity),
         unit: formData.unit,
-        customer_name: formData.customer_name || null,
+        customer_id: formData.customer_id || null,
+        customer_name: selectedCustomer?.name || null,
         due_date: formData.due_date,
         priority: parseInt(formData.priority),
         notes: formData.notes || null,
@@ -57,7 +84,7 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
         product_name: "",
         quantity: "",
         unit: "Adet",
-        customer_name: "",
+        customer_id: "",
         due_date: "",
         priority: "0",
         notes: "",
@@ -67,6 +94,10 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCustomerSuccess = async () => {
+    await fetchCustomers();
   };
 
   return (
@@ -87,12 +118,35 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="customer_name">Müşteri Adı</Label>
-              <Input
-                id="customer_name"
-                value={formData.customer_name}
-                onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-              />
+              <Label htmlFor="customer_id">Müşteri</Label>
+              <Select 
+                value={formData.customer_id} 
+                onValueChange={(value) => {
+                  if (value === "new_customer") {
+                    setShowAddCustomerDialog(true);
+                  } else {
+                    setFormData({ ...formData, customer_id: value });
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Müşteri seçin (opsiyonel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new_customer">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span>Yeni Müşteri Ekle</span>
+                    </div>
+                  </SelectItem>
+                  <SelectSeparator />
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} {customer.company ? `- ${customer.company}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -178,6 +232,12 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <CreateCustomerDialog 
+        open={showAddCustomerDialog}
+        onOpenChange={setShowAddCustomerDialog}
+        onSuccess={handleCustomerSuccess}
+      />
     </Dialog>
   );
 };

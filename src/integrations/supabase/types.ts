@@ -280,6 +280,7 @@ export type Database = {
           completed_date: string | null
           created_at: string
           created_by: string
+          customer_id: string | null
           customer_name: string | null
           due_date: string
           id: string
@@ -297,6 +298,7 @@ export type Database = {
           completed_date?: string | null
           created_at?: string
           created_by: string
+          customer_id?: string | null
           customer_name?: string | null
           due_date: string
           id?: string
@@ -314,6 +316,7 @@ export type Database = {
           completed_date?: string | null
           created_at?: string
           created_by?: string
+          customer_id?: string | null
           customer_name?: string | null
           due_date?: string
           id?: string
@@ -327,7 +330,15 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "production_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_processes: {
         Row: {
