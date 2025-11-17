@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Package, label: "Üretim Siparişleri", path: "/production" },
+  { icon: Users, label: "Görevler", path: "/tasks" },
+  { icon: ShoppingCart, label: "Siparişler", path: "/orders" },
   { icon: Users, label: "Müşteriler", path: "/customers" },
   { icon: Package, label: "Ürünler", path: "/products" },
-  { icon: ShoppingCart, label: "Siparişler", path: "/orders" },
   { icon: FileText, label: "Raporlar", path: "/reports" },
   { icon: Settings, label: "Ayarlar", path: "/settings" },
 ];
