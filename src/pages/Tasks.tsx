@@ -3,10 +3,15 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Users, Search } from "lucide-react";
+import { CreateTaskDialog } from "@/components/Tasks/CreateTaskDialog";
+import { TaskDetailModal } from "@/components/Tasks/TaskDetailModal";
 
 interface Task {
   id: string;
@@ -27,11 +32,21 @@ interface TaskAssignment {
   completed_at: string | null;
 }
 
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
 const Tasks = () => {
   const { user } = useAuth();
-  const [myTasks, setMyTasks] = useState<(Task & { assignment: TaskAssignment })[]>([]);
-  const [createdTasks, setCreatedTasks] = useState<Task[]>([]);
+  const [myTasks, setMyTasks] = useState<(Task & { assignment: TaskAssignment; assignedUsers?: Profile[] })[]>([]);
+  const [createdTasks, setCreatedTasks] = useState<(Task & { assignedUsers?: Profile[] })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("created_at");
 
   useEffect(() => {
     if (user) {
@@ -49,19 +64,31 @@ const Tasks = () => {
 
       if (assignError) throw assignError;
 
-      const assignedTasks = assignments?.map((a: any) => ({
-        ...a.tasks,
-        assignment: {
-          id: a.id,
-          task_id: a.task_id,
-          assigned_to: a.assigned_to,
-          assigned_at: a.assigned_at,
-          accepted_at: a.accepted_at,
-          completed_at: a.completed_at,
-        }
-      })) || [];
+      const assignedTasksWithUsers = await Promise.all(
+        (assignments || []).map(async (a: any) => {
+          const { data: taskAssignments } = await supabase
+            .from("task_assignments")
+            .select("assigned_to, profiles:assigned_to(id, full_name, email)")
+            .eq("task_id", a.tasks.id);
 
-      setMyTasks(assignedTasks);
+          const assignedUsers = taskAssignments?.map((ta: any) => ta.profiles) || [];
+
+          return {
+            ...a.tasks,
+            assignment: {
+              id: a.id,
+              task_id: a.task_id,
+              assigned_to: a.assigned_to,
+              assigned_at: a.assigned_at,
+              accepted_at: a.accepted_at,
+              completed_at: a.completed_at,
+            },
+            assignedUsers,
+          };
+        })
+      );
+
+      setMyTasks(assignedTasksWithUsers);
 
       // Benim oluşturduğum görevler
       const { data: created, error: createdError } = await supabase
@@ -70,7 +97,21 @@ const Tasks = () => {
         .eq("created_by", user?.id);
 
       if (createdError) throw createdError;
-      setCreatedTasks(created || []);
+
+      const createdTasksWithUsers = await Promise.all(
+        (created || []).map(async (task) => {
+          const { data: taskAssignments } = await supabase
+            .from("task_assignments")
+            .select("assigned_to, profiles:assigned_to(id, full_name, email)")
+            .eq("task_id", task.id);
+
+          const assignedUsers = taskAssignments?.map((ta: any) => ta.profiles) || [];
+
+          return { ...task, assignedUsers };
+        })
+      );
+
+      setCreatedTasks(createdTasksWithUsers);
     } catch (error: any) {
       toast.error("Görevler yüklenirken hata: " + error.message);
     } finally {
@@ -105,6 +146,41 @@ const Tasks = () => {
     return "text-muted-foreground";
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const filterTasks = (tasks: any[]) => {
+    return tasks.filter(task => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  };
+
+  const sortTasks = (tasks: any[]) => {
+    return [...tasks].sort((a, b) => {
+      if (sortBy === "priority") {
+        return b.priority - a.priority;
+      }
+      if (sortBy === "due_date") {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  };
+
+  const filteredAndSortedMyTasks = sortTasks(filterTasks(myTasks));
+  const filteredAndSortedCreatedTasks = sortTasks(filterTasks(createdTasks));
+
   if (loading) {
     return (
       <MainLayout>
@@ -123,11 +199,47 @@ const Tasks = () => {
             <h1 className="text-3xl font-bold text-foreground">Görevler</h1>
             <p className="text-muted-foreground mt-1">Görev takibi ve yönetimi</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Yeni Görev
-          </Button>
+          <CreateTaskDialog onTaskCreated={fetchTasks} />
         </div>
+
+        {/* Filtreler ve Arama */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Görev ara..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Durum filtrele" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Durumlar</SelectItem>
+                  <SelectItem value="pending">Beklemede</SelectItem>
+                  <SelectItem value="in_progress">Devam Ediyor</SelectItem>
+                  <SelectItem value="completed">Tamamlandı</SelectItem>
+                  <SelectItem value="cancelled">İptal</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sırala" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Tarihe Göre</SelectItem>
+                  <SelectItem value="priority">Önceliğe Göre</SelectItem>
+                  <SelectItem value="due_date">Bitiş Tarihine Göre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -136,10 +248,11 @@ const Tasks = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {myTasks.map((task) => (
+                {filteredAndSortedMyTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedTaskId(task.id)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -148,23 +261,42 @@ const Tasks = () => {
                           <h3 className="font-semibold">{task.title}</h3>
                         </div>
                         {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {task.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <Badge variant="secondary">{getStatusLabel(task.status)}</Badge>
                           <span className={`text-xs ${getPriorityColor(task.priority)}`}>
                             Öncelik: {task.priority}
                           </span>
+                          {task.assignedUsers && task.assignedUsers.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <div className="flex -space-x-2">
+                                {task.assignedUsers.slice(0, 3).map((user) => (
+                                  <Avatar key={user.id} className="h-6 w-6 border-2 border-background">
+                                    <AvatarFallback className="text-xs">
+                                      {getInitials(user.full_name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              </div>
+                              {task.assignedUsers.length > 3 && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  +{task.assignedUsers.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {myTasks.length === 0 && (
+                {filteredAndSortedMyTasks.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
-                    Henüz size atanmış görev yok
+                    {searchTerm || statusFilter !== "all" ? "Görev bulunamadı" : "Henüz size atanmış görev yok"}
                   </p>
                 )}
               </div>
@@ -177,10 +309,11 @@ const Tasks = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {createdTasks.map((task) => (
+                {filteredAndSortedCreatedTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedTaskId(task.id)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -189,26 +322,55 @@ const Tasks = () => {
                           <h3 className="font-semibold">{task.title}</h3>
                         </div>
                         {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {task.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <Badge variant="secondary">{getStatusLabel(task.status)}</Badge>
+                          {task.assignedUsers && task.assignedUsers.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <div className="flex -space-x-2">
+                                {task.assignedUsers.slice(0, 3).map((user) => (
+                                  <Avatar key={user.id} className="h-6 w-6 border-2 border-background">
+                                    <AvatarFallback className="text-xs">
+                                      {getInitials(user.full_name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              </div>
+                              {task.assignedUsers.length > 3 && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  +{task.assignedUsers.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {createdTasks.length === 0 && (
+                {filteredAndSortedCreatedTasks.length === 0 && (
                   <p className="text-center py-8 text-muted-foreground">
-                    Henüz görev oluşturmadınız
+                    {searchTerm || statusFilter !== "all" ? "Görev bulunamadı" : "Henüz görev oluşturmadınız"}
                   </p>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Task Detail Modal */}
+        {selectedTaskId && (
+          <TaskDetailModal
+            taskId={selectedTaskId}
+            open={!!selectedTaskId}
+            onOpenChange={(open) => !open && setSelectedTaskId(null)}
+            onUpdate={fetchTasks}
+          />
+        )}
       </div>
     </MainLayout>
   );
