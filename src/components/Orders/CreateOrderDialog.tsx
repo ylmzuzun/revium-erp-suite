@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
-import { CreateCustomerDialog } from "@/components/Customers/CreateCustomerDialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { CustomerCombobox } from "@/components/Customers/CustomerCombobox";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -31,12 +31,11 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
-  const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [showAddCustomerDialog, setShowAddCustomerDialog] = useState(false);
   
   const [orderData, setOrderData] = useState({
     customer_id: "",
+    customer_name: "",
     delivery_date: "",
     notes: "",
     order_number: `SIP-${Date.now()}`,
@@ -48,23 +47,9 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
 
   useEffect(() => {
     if (open) {
-      fetchCustomers();
       fetchProducts();
     }
   }, [open]);
-
-  const fetchCustomers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, name, company")
-        .order("name");
-      if (error) throw error;
-      setCustomers(data || []);
-    } catch (error: any) {
-      toast.error("Müşteriler yüklenirken hata: " + error.message);
-    }
-  };
 
   const fetchProducts = async () => {
     try {
@@ -171,6 +156,7 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
       setStep(1);
       setOrderData({
         customer_id: "",
+        customer_name: "",
         delivery_date: "",
         notes: "",
         order_number: `SIP-${Date.now()}`,
@@ -182,8 +168,6 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
       setLoading(false);
     }
   };
-
-  const selectedCustomer = customers.find(c => c.id === orderData.customer_id);
 
   return (
     <>
@@ -230,34 +214,13 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
               
               <div className="space-y-2">
                 <Label htmlFor="customer_id">Müşteri *</Label>
-                <Select 
-                  value={orderData.customer_id} 
-                  onValueChange={(value) => {
-                    if (value === "new_customer") {
-                      setShowAddCustomerDialog(true);
-                    } else {
-                      setOrderData({ ...orderData, customer_id: value });
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Müşteri seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new_customer">
-                      <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        <span>Yeni Müşteri Ekle</span>
-                      </div>
-                    </SelectItem>
-                    <SelectSeparator />
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} {customer.company ? `- ${customer.company}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CustomerCombobox
+                  value={orderData.customer_id}
+                  onChange={(customerId, customerName) => 
+                    setOrderData({ ...orderData, customer_id: customerId, customer_name: customerName })
+                  }
+                  placeholder="Müşteri seçin veya ara..."
+                />
               </div>
 
               <div className="flex justify-end mt-6">
@@ -375,9 +338,7 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
                   <div className="space-y-3">
                     <div>
                       <Label className="text-muted-foreground">Müşteri</Label>
-                      <p className="font-medium">
-                        {selectedCustomer?.name} {selectedCustomer?.company && `- ${selectedCustomer.company}`}
-                      </p>
+                      <p className="font-medium">{orderData.customer_name || "-"}</p>
                     </div>
                     
                     <div>
@@ -435,12 +396,6 @@ export const CreateOrderDialog = ({ open, onOpenChange, onSuccess }: CreateOrder
           )}
         </DialogContent>
       </Dialog>
-
-      <CreateCustomerDialog 
-        open={showAddCustomerDialog}
-        onOpenChange={setShowAddCustomerDialog}
-        onSuccess={fetchCustomers}
-      />
     </>
   );
 };

@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, TrendingUp, Package, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SalesReportDialog } from "@/components/Reports/SalesReportDialog";
 
 const Reports = () => {
+  const [salesDialogOpen, setSalesDialogOpen] = useState(false);
+
   const reportTypes = [
     {
       icon: TrendingUp,
@@ -52,11 +56,19 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">{report.description}</p>
-                <Button variant="outline" className="w-full">Rapor Oluştur</Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => index === 0 && setSalesDialogOpen(true)}
+                >
+                  Rapor Oluştur
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        <SalesReportDialog open={salesDialogOpen} onOpenChange={setSalesDialogOpen} />
 
         <Card>
           <CardHeader>

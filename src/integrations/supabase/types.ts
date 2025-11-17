@@ -495,6 +495,48 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          created_at: string
+          created_by: string
+          end_date: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          report_format: Database["public"]["Enums"]["report_format"]
+          report_type: Database["public"]["Enums"]["report_type"]
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          end_date?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          report_format?: Database["public"]["Enums"]["report_format"]
+          report_type: Database["public"]["Enums"]["report_type"]
+          start_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          end_date?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          report_format?: Database["public"]["Enums"]["report_format"]
+          report_type?: Database["public"]["Enums"]["report_type"]
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           can_create: boolean | null
@@ -745,6 +787,8 @@ export type Database = {
         | "quality_check"
         | "completed"
         | "on_hold"
+      report_format: "pdf" | "excel" | "csv"
+      report_type: "sales" | "production" | "customer" | "financial"
       task_status: "pending" | "in_progress" | "completed" | "cancelled"
       user_role: "admin" | "manager" | "operator" | "viewer"
     }
@@ -889,6 +933,8 @@ export const Constants = {
         "completed",
         "on_hold",
       ],
+      report_format: ["pdf", "excel", "csv"],
+      report_type: ["sales", "production", "customer", "financial"],
       task_status: ["pending", "in_progress", "completed", "cancelled"],
       user_role: ["admin", "manager", "operator", "viewer"],
     },
