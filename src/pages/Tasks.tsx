@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, Clock, AlertCircle, Users, Search } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Users, Search, Trash2, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CreateTaskDialog } from "@/components/Tasks/CreateTaskDialog";
 import { TaskDetailModal } from "@/components/Tasks/TaskDetailModal";
 
@@ -47,6 +48,7 @@ const Tasks = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("created_at");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -116,6 +118,34 @@ const Tasks = () => {
       toast.error("Görevler yüklenirken hata: " + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    setDeletingId(taskId);
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId);
+
+      if (error) {
+        if (error.code === "23503") {
+          toast.error("Bu görev başka kayıtlarla ilişkili. Önce ilişkileri kaldırın.");
+        } else if (error.code === "42501") {
+          toast.error("Bu görevi silme yetkiniz yok.");
+        } else {
+          toast.error(`Silme hatası: ${error.message}`);
+        }
+        return;
+      }
+
+      toast.success("Görev başarıyla silindi");
+      fetchTasks();
+    } catch (error: any) {
+      toast.error("Beklenmeyen hata: " + error.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -309,14 +339,13 @@ const Tasks = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredAndSortedCreatedTasks.map((task) => (
+                 {filteredAndSortedCreatedTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedTaskId(task.id)}
+                    className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                      <div className="flex-1 cursor-pointer" onClick={() => setSelectedTaskId(task.id)}>
                         <div className="flex items-center gap-2">
                           {getStatusIcon(task.status)}
                           <h3 className="font-semibold">{task.title}</h3>
@@ -349,6 +378,42 @@ const Tasks = () => {
                           )}
                         </div>
                       </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={deletingId === task.id}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {deletingId === task.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Görevi Sil</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              "{task.title}" görevini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTask(task.id);
+                              }}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Sil
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}

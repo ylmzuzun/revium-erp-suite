@@ -5,6 +5,8 @@ import { Users, Building2, Settings } from "lucide-react";
 import { UserManagement } from "@/components/Admin/UserManagement";
 import { DepartmentManagement } from "@/components/Admin/DepartmentManagement";
 import { SystemSettings } from "@/components/Admin/SystemSettings";
+import { RolePermissions } from "@/components/Admin/RolePermissions";
+import { AuditLogs } from "@/components/Admin/AuditLogs";
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
@@ -20,21 +22,26 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Kullanıcı Yönetimi</span>
-              <span className="sm:hidden">Kullanıcılar</span>
+              <span className="hidden sm:inline">Kullanıcılar</span>
             </TabsTrigger>
             <TabsTrigger value="departments" className="gap-2">
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Departman Yönetimi</span>
-              <span className="sm:hidden">Departmanlar</span>
+              <span className="hidden sm:inline">Departmanlar</span>
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Rol Yetkileri</span>
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Audit Loglar</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Sistem Ayarları</span>
-              <span className="sm:hidden">Ayarlar</span>
+              <span className="hidden sm:inline">Ayarlar</span>
             </TabsTrigger>
           </TabsList>
 
@@ -46,13 +53,21 @@ const Admin = () => {
             <DepartmentManagement />
           </TabsContent>
 
+          <TabsContent value="permissions" className="space-y-4">
+            <RolePermissions />
+          </TabsContent>
+          
+          <TabsContent value="logs" className="space-y-4">
+            <AuditLogs />
+          </TabsContent>
+
           <TabsContent value="settings" className="space-y-4">
             <SystemSettings />
           </TabsContent>
         </Tabs>
-      </div>
-    </MainLayout>
-  );
-};
-
-export default Admin;
+        </div>
+      </MainLayout>
+    );
+  };
+  
+  export default Admin;
