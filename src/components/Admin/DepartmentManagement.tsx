@@ -21,7 +21,18 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Building2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Users, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Department {
   id: string;
@@ -38,6 +49,7 @@ export const DepartmentManagement = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -119,19 +131,31 @@ export const DepartmentManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu departmanı silmek istediğinizden emin misiniz?")) return;
-
+    setDeletingId(id);
     try {
       const { error } = await supabase
         .from("departments")
         .delete()
         .eq("id", id);
 
-      if (error) throw error;
-      toast.success("Departman silindi");
+      if (error) {
+        // Foreign key hatası kontrolü
+        if (error.code === "23503") {
+          toast.error("Bu departmanda kayıtlı kullanıcılar var. Önce kullanıcıları başka departmana aktarın.");
+        } else if (error.code === "42501") {
+          toast.error("Bu işlem için yetkiniz yok.");
+        } else {
+          toast.error(`Silme hatası: ${error.message}`);
+        }
+        return;
+      }
+
+      toast.success("Departman başarıyla silindi");
       fetchDepartments();
     } catch (error: any) {
-      toast.error("Silme sırasında hata: " + error.message);
+      toast.error("Beklenmeyen hata: " + error.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -261,13 +285,43 @@ export const DepartmentManagement = () => {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(dept.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={deletingId === dept.id}
+                          >
+                            {deletingId === dept.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Departmanı Sil</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              "{dept.name}" departmanını silmek üzeresiniz. Bu işlem geri alınamaz.
+                              {dept._count?.profiles && dept._count.profiles > 0 && (
+                                <span className="block mt-2 text-destructive font-medium">
+                                  Uyarı: Bu departmanda {dept._count.profiles} kullanıcı kayıtlı!
+                                </span>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>İptal</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(dept.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Sil
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
