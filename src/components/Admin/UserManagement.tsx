@@ -120,29 +120,43 @@ export const UserManagement = () => {
         .maybeSingle();
 
       if (existingRole) {
-        // Rolü güncelle
-        const { error } = await supabase
+        // Mevcut rolü sil
+        const { error: deleteError } = await supabase
           .from("user_roles")
-          .update({ role: newRole as "admin" | "manager" | "operator" | "viewer" })
+          .delete()
           .eq("user_id", selectedUser.id);
 
-        if (error) throw error;
-      } else {
-        // Yeni rol ekle
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: selectedUser.id, role: newRole as "admin" | "manager" | "operator" | "viewer" });
-
-        if (error) throw error;
+        if (deleteError) {
+          if (deleteError.code === "42501") {
+            toast.error("Bu işlem için yetkiniz yok.");
+          } else {
+            toast.error("Eski rol silinemedi: " + deleteError.message);
+          }
+          return;
+        }
       }
 
-      toast.success("Kullanıcı rolü güncellendi");
+      // Yeni rolü ekle
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: selectedUser.id, role: newRole as "admin" | "manager" | "operator" | "viewer" });
+
+      if (error) {
+        if (error.code === "42501") {
+          toast.error("Bu işlem için yetkiniz yok.");
+        } else {
+          toast.error("Rol oluşturulamadı: " + error.message);
+        }
+        return;
+      }
+
+      toast.success("Kullanıcı rolü başarıyla güncellendi");
       setShowRoleDialog(false);
       setSelectedUser(null);
       setNewRole("");
       fetchData();
     } catch (error: any) {
-      toast.error("Rol güncellenirken hata: " + error.message);
+      toast.error("Beklenmeyen hata: " + error.message);
     }
   };
 
@@ -153,12 +167,19 @@ export const UserManagement = () => {
         .update({ department_id: departmentId === "none" ? null : departmentId })
         .eq("id", userId);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === "42501") {
+          toast.error("Bu işlem için yetkiniz yok.");
+        } else {
+          toast.error("Departman güncellenemedi: " + error.message);
+        }
+        return;
+      }
 
-      toast.success("Departman güncellendi");
+      toast.success("Kullanıcı departmanı başarıyla güncellendi");
       fetchData();
     } catch (error: any) {
-      toast.error("Departman güncellenirken hata: " + error.message);
+      toast.error("Beklenmeyen hata: " + error.message);
     }
   };
 
