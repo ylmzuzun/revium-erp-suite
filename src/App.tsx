@@ -14,6 +14,7 @@ import Customers from "./pages/Customers";
 import Products from "./pages/Products";
 import Orders from "./pages/Orders";
 import Reports from "./pages/Reports";
+import RawMaterials from "./pages/RawMaterials";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
             <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/raw-materials" element={<ProtectedRoute><RawMaterials /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

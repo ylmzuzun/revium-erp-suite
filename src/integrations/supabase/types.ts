@@ -130,6 +130,53 @@ export type Database = {
           },
         ]
       }
+      material_transactions: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          quantity: number
+          raw_material_id: string
+          reference_id: string | null
+          reference_type: string | null
+          transaction_type: Database["public"]["Enums"]["material_transaction_type"]
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          raw_material_id: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type: Database["public"]["Enums"]["material_transaction_type"]
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          raw_material_id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type?: Database["public"]["Enums"]["material_transaction_type"]
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_transactions_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -271,6 +318,51 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_per_unit: number
+          raw_material_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_per_unit: number
+          raw_material_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_per_unit?: number
+          raw_material_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_recipes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_recipes_raw_material_id_fkey"
+            columns: ["raw_material_id"]
+            isOneToOne: false
+            referencedRelation: "raw_materials"
             referencedColumns: ["id"]
           },
         ]
@@ -494,6 +586,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      raw_materials: {
+        Row: {
+          category: Database["public"]["Enums"]["material_category"]
+          cost: number
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          location: string | null
+          max_stock: number | null
+          min_stock: number
+          name: string
+          sku: string
+          stock: number
+          supplier: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["material_category"]
+          cost?: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          max_stock?: number | null
+          min_stock?: number
+          name: string
+          sku: string
+          stock?: number
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["material_category"]
+          cost?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          location?: string | null
+          max_stock?: number | null
+          min_stock?: number
+          name?: string
+          sku?: string
+          stock?: number
+          supplier?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       reports: {
         Row: {
@@ -755,6 +901,10 @@ export type Database = {
         Args: { _task_id: string; _user_id: string }
         Returns: boolean
       }
+      consume_materials_for_order: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -774,6 +924,18 @@ export type Database = {
       }
     }
     Enums: {
+      material_category:
+        | "chemical"
+        | "metal"
+        | "plastic"
+        | "electronic"
+        | "packaging"
+        | "other"
+      material_transaction_type:
+        | "purchase"
+        | "consumption"
+        | "adjustment"
+        | "return"
       order_status:
         | "pending"
         | "confirmed"
@@ -918,6 +1080,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      material_category: [
+        "chemical",
+        "metal",
+        "plastic",
+        "electronic",
+        "packaging",
+        "other",
+      ],
+      material_transaction_type: [
+        "purchase",
+        "consumption",
+        "adjustment",
+        "return",
+      ],
       order_status: [
         "pending",
         "confirmed",

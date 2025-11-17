@@ -44,6 +44,7 @@ export const Sidebar = () => {
     { icon: ShoppingCart, label: "Siparişler", path: "/orders" },
     { icon: Users, label: "Müşteriler", path: "/customers" },
     { icon: Package, label: "Ürünler", path: "/products" },
+    { icon: Building2, label: "Hammaddeler", path: "/raw-materials" },
     { icon: FileText, label: "Raporlar", path: "/reports" },
     ...(isAdmin ? [{ icon: Shield, label: "Admin Paneli", path: "/admin" }] : []),
     { icon: Settings, label: "Ayarlar", path: "/settings" },

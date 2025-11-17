@@ -1,9 +1,23 @@
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { StatCard } from "@/components/Dashboard/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, ShoppingCart, TrendingUp } from "lucide-react";
+import { Users, Package, ShoppingCart, TrendingUp, Loader2 } from "lucide-react";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
+  const { data: stats, isLoading } = useDashboardStats();
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -15,29 +29,43 @@ const Dashboard = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Toplam Müşteri"
-            value="1,234"
+            value={stats?.customers.total.toString() || "0"}
             icon={Users}
-            trend={{ value: "+12% bu ay", positive: true }}
+            trend={{
+              value: `${stats?.customers.trend > 0 ? "+" : ""}${stats?.customers.trend.toFixed(1)}% bu ay`,
+              positive: (stats?.customers.trend || 0) >= 0,
+            }}
             variant="primary"
           />
           <StatCard
             title="Aktif Siparişler"
-            value="89"
+            value={stats?.orders.active.toString() || "0"}
             icon={ShoppingCart}
-            trend={{ value: "+5% bu hafta", positive: true }}
+            trend={{
+              value: `${stats?.orders.trend > 0 ? "+" : ""}${stats?.orders.trend.toFixed(1)}% bu ay`,
+              positive: (stats?.orders.trend || 0) >= 0,
+            }}
             variant="success"
           />
           <StatCard
             title="Ürün Stok"
-            value="456"
+            value={stats?.products.total_stock.toString() || "0"}
             icon={Package}
-            trend={{ value: "-3% bu ay", positive: false }}
+            trend={{
+              value: stats?.products.low_stock_count > 0 
+                ? `${stats?.products.low_stock_count} ürün düşük`
+                : "Stoklar yeterli",
+              positive: stats?.products.low_stock_count === 0,
+            }}
           />
           <StatCard
             title="Aylık Ciro"
-            value="₺845K"
+            value={`₺${(stats?.revenue.current_month || 0).toLocaleString('tr-TR')}`}
             icon={TrendingUp}
-            trend={{ value: "+18% bu ay", positive: true }}
+            trend={{
+              value: `${stats?.revenue.trend > 0 ? "+" : ""}${stats?.revenue.trend.toFixed(1)}% bu ay`,
+              positive: (stats?.revenue.trend || 0) >= 0,
+            }}
             variant="warning"
           />
         </div>
@@ -48,20 +76,26 @@ const Dashboard = () => {
               <CardTitle>Son Siparişler</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="font-medium">Sipariş #{1000 + i}</p>
-                      <p className="text-sm text-muted-foreground">Müşteri {i}</p>
+              {!stats?.recent_orders || stats.recent_orders.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Henüz sipariş yok</p>
+              ) : (
+                <div className="space-y-4">
+                  {stats.recent_orders.map((order) => (
+                    <div key={order.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <div>
+                        <p className="font-medium">{order.order_number}</p>
+                        <p className="text-sm text-muted-foreground">{order.customer_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">₺{order.total.toLocaleString('tr-TR')}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(order.order_date).toLocaleDateString('tr-TR')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">₺{(Math.random() * 5000 + 1000).toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">Bugün</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -70,27 +104,25 @@ const Dashboard = () => {
               <CardTitle>Düşük Stoklu Ürünler</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[
-                  { name: "Ürün A", stock: 5, min: 10 },
-                  { name: "Ürün B", stock: 8, min: 15 },
-                  { name: "Ürün C", stock: 3, min: 10 },
-                  { name: "Ürün D", stock: 12, min: 20 },
-                  { name: "Ürün E", stock: 7, min: 15 },
-                ].map((product, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">Min: {product.min} adet</p>
+              {!stats?.low_stock_products || stats.low_stock_products.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Düşük stoklu ürün yok</p>
+              ) : (
+                <div className="space-y-4">
+                  {stats.low_stock_products.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <div>
+                        <p className="font-medium">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">Min: {product.min_stock} adet</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={product.stock === 0 ? "destructive" : "secondary"}>
+                          {product.stock} adet
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning">
-                        {product.stock} adet
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
