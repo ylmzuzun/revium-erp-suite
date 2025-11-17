@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Package, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Package, Edit, Trash2, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CreateProductDialog } from "@/components/Products/CreateProductDialog";
 import { EditProductDialog } from "@/components/Products/EditProductDialog";
 import { ProductDetailModal } from "@/components/Products/ProductDetailModal";
+import { ProductRecipeDialog } from "@/components/Products/ProductRecipeDialog";
 
 const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -18,6 +19,7 @@ const Products = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -160,6 +162,18 @@ const Products = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedProduct(product);
+                        setRecipeDialogOpen(true);
+                      }}
+                      title="Reçete Yönetimi"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(product);
                         setEditDialogOpen(true);
                       }}
                     >
@@ -206,6 +220,11 @@ const Products = () => {
           <ProductDetailModal
             open={detailModalOpen}
             onOpenChange={setDetailModalOpen}
+            product={selectedProduct}
+          />
+          <ProductRecipeDialog
+            open={recipeDialogOpen}
+            onOpenChange={setRecipeDialogOpen}
             product={selectedProduct}
           />
         </>
