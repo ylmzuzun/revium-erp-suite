@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CustomerCombobox } from "@/components/Customers/CustomerCombobox";
 
 interface EditOrderDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ export const EditOrderDialog = ({ open, onOpenChange, onSuccess, order }: EditOr
     product_name: "",
     quantity: "",
     unit: "Adet",
+    customer_id: "",
     customer_name: "",
     due_date: "",
     priority: "0",
@@ -36,6 +38,7 @@ export const EditOrderDialog = ({ open, onOpenChange, onSuccess, order }: EditOr
         product_name: order.product_name || "",
         quantity: order.quantity?.toString() || "",
         unit: order.unit || "Adet",
+        customer_id: order.customer_id || "",
         customer_name: order.customer_name || "",
         due_date: order.due_date ? new Date(order.due_date).toISOString().split("T")[0] : "",
         priority: order.priority?.toString() || "0",
@@ -57,6 +60,7 @@ export const EditOrderDialog = ({ open, onOpenChange, onSuccess, order }: EditOr
           product_name: formData.product_name,
           quantity: parseInt(formData.quantity),
           unit: formData.unit,
+          customer_id: formData.customer_id || null,
           customer_name: formData.customer_name || null,
           due_date: formData.due_date,
           priority: parseInt(formData.priority),
