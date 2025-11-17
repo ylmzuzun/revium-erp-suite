@@ -49,7 +49,7 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
       const currentUserId = session.user.id;
       const currentUserEmail = session.user.email || "Sistem";
 
-      // Görevi oluştur
+      // Görevi oluştur (trigger created_by'ı auth.uid() ile override edecek)
       const { data: task, error: taskError } = await supabase
         .from("tasks")
         .insert({
@@ -58,7 +58,7 @@ export const CreateTaskDialog = ({ onTaskCreated }: CreateTaskDialogProps) => {
           priority: parseInt(formData.priority),
           due_date: formData.due_date || null,
           status: formData.status as "pending" | "in_progress" | "completed" | "cancelled",
-          created_by: currentUserId,
+          created_by: currentUserId, // Trigger ensures this matches auth.uid()
         })
         .select()
         .single();
