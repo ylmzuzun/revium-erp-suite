@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { 
   LayoutDashboard, 
   Users, 
@@ -6,22 +7,48 @@ import {
   ShoppingCart, 
   FileText, 
   Settings,
-  Building2
+  Building2,
+  Factory,
+  ClipboardList,
+  Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Package, label: "Üretim Siparişleri", path: "/production" },
-  { icon: Users, label: "Görevler", path: "/tasks" },
-  { icon: ShoppingCart, label: "Siparişler", path: "/orders" },
-  { icon: Users, label: "Müşteriler", path: "/customers" },
-  { icon: Package, label: "Ürünler", path: "/products" },
-  { icon: FileText, label: "Raporlar", path: "/reports" },
-  { icon: Settings, label: "Ayarlar", path: "/settings" },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Sidebar = () => {
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      
+      setIsAdmin(!!data);
+    };
+
+    checkAdminRole();
+  }, [user]);
+
+  const menuItems = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: Factory, label: "Üretim Siparişleri", path: "/production" },
+    { icon: ClipboardList, label: "Görevler", path: "/tasks" },
+    { icon: ShoppingCart, label: "Siparişler", path: "/orders" },
+    { icon: Users, label: "Müşteriler", path: "/customers" },
+    { icon: Package, label: "Ürünler", path: "/products" },
+    { icon: FileText, label: "Raporlar", path: "/reports" },
+    ...(isAdmin ? [{ icon: Shield, label: "Admin Paneli", path: "/admin" }] : []),
+    { icon: Settings, label: "Ayarlar", path: "/settings" },
+  ];
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border">
       <div className="flex h-16 items-center justify-center border-b border-sidebar-border">
