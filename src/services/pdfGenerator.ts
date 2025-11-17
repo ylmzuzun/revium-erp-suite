@@ -83,3 +83,38 @@ export const generateCustomerReportPDF = (data: any, startDate: string, endDate:
   
   return doc.output('blob');
 };
+
+export const generateFinancialReportPDF = (data: any, startDate: string, endDate: string) => {
+  const doc = new jsPDF();
+  
+  doc.setFontSize(20);
+  doc.text('Mali Rapor', 14, 20);
+  doc.setFontSize(10);
+  doc.text(`Tarih Aralığı: ${startDate} - ${endDate}`, 14, 30);
+  
+  autoTable(doc, {
+    startY: 40,
+    head: [['Metrik', 'Değer']],
+    body: [
+      ['Toplam Gelir', `₺${data.totalRevenue.toFixed(2)}`],
+      ['Toplam Gider', `₺${data.totalCost.toFixed(2)}`],
+      ['Brüt Kar', `₺${data.grossProfit.toFixed(2)}`],
+      ['Kar Marjı', `${data.profitMargin.toFixed(1)}%`],
+    ],
+  });
+  
+  const finalY = (doc as any).lastAutoTable.finalY || 70;
+  doc.text('En Karlı Ürünler', 14, finalY + 10);
+  autoTable(doc, {
+    startY: finalY + 15,
+    head: [['Ürün', 'Gelir', 'Gider', 'Kar']],
+    body: data.topProfitableProducts.map((p: any) => [
+      p.name, 
+      `₺${p.revenue.toFixed(2)}`, 
+      `₺${p.cost.toFixed(2)}`,
+      `₺${p.profit.toFixed(2)}`
+    ]),
+  });
+  
+  return doc.output('blob');
+};
