@@ -4,11 +4,14 @@ import { RecentActivitiesTable } from "./RecentActivitiesTable";
 import { DepartmentStatsTable } from "./DepartmentStatsTable";
 import { TaskStatusPieChart } from "./TaskStatusPieChart";
 import { ProductionStatusBarChart } from "./ProductionStatusBarChart";
+import { QuickActions } from "@/components/Dashboard/QuickActions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckSquare, Package, Users, Building2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const AdminDashboard = () => {
   const { data: stats, isLoading, error } = useAdminStats();
+  const navigate = useNavigate();
 
   if (error) {
     return (
@@ -38,6 +41,9 @@ export const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Hızlı İşlemler */}
+      <QuickActions />
+
       {/* Ana İstatistik Kartları */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -49,6 +55,8 @@ export const AdminDashboard = () => {
             positive: true,
           }}
           variant="primary"
+          onClick={() => navigate("/tasks")}
+          clickable
         />
         <StatCard
           title="Aktif Üretim"
@@ -59,18 +67,24 @@ export const AdminDashboard = () => {
             positive: true,
           }}
           variant="warning"
+          onClick={() => navigate("/production")}
+          clickable
         />
         <StatCard
           title="Kullanıcılar"
           value={stats.users}
           icon={Users}
           variant="default"
+          onClick={() => navigate("/admin?tab=users")}
+          clickable
         />
         <StatCard
           title="Departmanlar"
           value={stats.departments}
           icon={Building2}
           variant="default"
+          onClick={() => navigate("/admin?tab=departments")}
+          clickable
         />
       </div>
 

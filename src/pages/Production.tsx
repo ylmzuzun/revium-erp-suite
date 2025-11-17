@@ -3,10 +3,23 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CreateOrderDialog } from "@/components/Production/CreateOrderDialog";
+import { EditOrderDialog } from "@/components/Production/EditOrderDialog";
+import { OrderDetailModal } from "@/components/Production/OrderDetailModal";
 
 interface ProductionOrder {
   id: string;
@@ -23,6 +36,11 @@ interface ProductionOrder {
 const Production = () => {
   const [orders, setOrders] = useState<ProductionOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -68,6 +86,26 @@ const Production = () => {
     return labels[status] || status;
   };
 
+  const handleDelete = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      const { error } = await supabase
+        .from("production_orders")
+        .delete()
+        .eq("id", selectedOrder.id);
+
+      if (error) throw error;
+
+      toast.success("Sipariş silindi");
+      fetchOrders();
+      setDeleteDialogOpen(false);
+      setSelectedOrder(null);
+    } catch (error: any) {
+      toast.error("Hata: " + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <MainLayout>
@@ -86,7 +124,7 @@ const Production = () => {
             <h1 className="text-3xl font-bold text-foreground">Üretim Siparişleri</h1>
             <p className="text-muted-foreground mt-1">Üretim süreçlerini yönetin</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             Yeni Sipariş
           </Button>
@@ -108,7 +146,13 @@ const Production = () => {
                   key={order.id}
                   className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                 >
-                  <div>
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setDetailModalOpen(true);
+                    }}
+                  >
                     <h3 className="font-semibold text-foreground">{order.order_number}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{order.product_name}</p>
                     <div className="flex items-center gap-3 mt-2">
@@ -125,12 +169,28 @@ const Production = () => {
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">
-                      Termin: {new Date(order.due_date).toLocaleDateString("tr-TR")}
-                    </p>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      Detaylar
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrder(order);
+                        setEditDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrder(order);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -144,6 +204,43 @@ const Production = () => {
           </CardContent>
         </Card>
       </div>
+
+      <CreateOrderDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchOrders}
+      />
+
+      {selectedOrder && (
+        <>
+          <EditOrderDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={fetchOrders}
+            order={selectedOrder}
+          />
+          <OrderDetailModal
+            open={detailModalOpen}
+            onOpenChange={setDetailModalOpen}
+            order={selectedOrder}
+          />
+        </>
+      )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Siparişi sil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu işlem geri alınamaz. Sipariş kalıcı olarak silinecek.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Sil</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
