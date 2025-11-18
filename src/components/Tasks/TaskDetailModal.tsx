@@ -14,6 +14,8 @@ interface AssignedUser {
   id: string;
   full_name: string;
   email: string;
+  status: string | null;
+  rejection_reason: string | null;
   accepted_at: string | null;
   completed_at: string | null;
 }
@@ -54,6 +56,8 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
         .from("task_assignments")
         .select(`
           id,
+          status,
+          rejection_reason,
           accepted_at,
           completed_at,
           assigned_to,
@@ -71,6 +75,8 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
         id: a.profiles.id,
         full_name: a.profiles.full_name,
         email: a.profiles.email,
+        status: a.status,
+        rejection_reason: a.rejection_reason,
         accepted_at: a.accepted_at,
         completed_at: a.completed_at,
       })) || [];
@@ -244,16 +250,24 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
                   <div className="flex-1">
                     <div className="font-medium">{assignedUser.full_name}</div>
                     <div className="text-sm text-muted-foreground">{assignedUser.email}</div>
+                    {assignedUser.status === 'rejected' && assignedUser.rejection_reason && (
+                      <p className="text-sm text-destructive mt-1">
+                        Red nedeni: {assignedUser.rejection_reason}
+                      </p>
+                    )}
                   </div>
-                  {assignedUser.completed_at && (
+                  {assignedUser.status === 'completed' && (
                     <Badge variant="default" className="bg-success">
                       Tamamlandı
                     </Badge>
                   )}
-                  {assignedUser.accepted_at && !assignedUser.completed_at && (
+                  {assignedUser.status === 'accepted' && (
                     <Badge variant="secondary">Kabul Edildi</Badge>
                   )}
-                  {!assignedUser.accepted_at && (
+                  {assignedUser.status === 'rejected' && (
+                    <Badge variant="destructive">Reddedildi</Badge>
+                  )}
+                  {assignedUser.status === 'pending' && (
                     <Badge variant="outline">Bekliyor</Badge>
                   )}
                 </div>
