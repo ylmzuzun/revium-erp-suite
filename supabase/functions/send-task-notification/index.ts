@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-// 🔥 Env bağımlılığı yok → sorunsuz
+// İstersen şimdilik sabit kalsın, sonra secret'a geçiririz
 const RESEND_API_KEY = "re_3BomGFXo_2iU1pozgiakT8RAfrpvZmn4b";
 
 const corsHeaders = {
@@ -27,9 +27,22 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("RESEND_API_KEY missing");
     }
 
-    const data: TaskNotificationRequest = await req.json();
+    const {
+      recipientEmails,
+      taskTitle,
+      taskDescription,
+      taskDueDate,
+      taskPriority,
+      assignerName,
+    }: TaskNotificationRequest = await req.json();
 
-    const { recipientEmails, taskTitle, taskDescription, taskDueDate, taskPriority, assignerName } = data;
+    console.log("Task mail payload:", {
+      recipientEmails,
+      taskTitle,
+      taskPriority,
+      taskDueDate,
+      assignerName,
+    });
 
     if (!recipientEmails || recipientEmails.length === 0) {
       throw new Error("No recipient emails provided");
@@ -56,17 +69,22 @@ const handler = async (req: Request): Promise<Response> => {
       : "";
 
     const html = `
-      <html>
-      <body>
-        <h2>🔔 Yeni Görev Atandı</h2>
-        <p><strong>${assignerName}</strong> size yeni bir görev atadı.</p>
-        <p><strong>Görev:</strong> ${taskTitle}</p>
-        <p><strong>Öncelik:</strong> ${priorityLabel}</p>
-        ${taskDescription ? `<p>${taskDescription}</p>` : ""}
-        ${dueDateText}
-      </body>
+      <!DOCTYPE html>
+      <html lang="tr">
+        <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+          <h2>🔔 Yeni Görev Atandı</h2>
+          <p><strong>${assignerName}</strong> size yeni bir görev atadı.</p>
+          <p><strong>Görev:</strong> ${taskTitle}</p>
+          <p><strong>Öncelik:</strong> ${priorityLabel}</p>
+          ${taskDescription ? `<p>${taskDescription}</p>` : ""}
+          ${dueDateText}
+          <p>Görevinizi görüntülemek için Revium ERP sistemine giriş yapın.</p>
+        </body>
       </html>
     `;
+
+    // 🔑 BURASI KRİTİK: verified domain ile gönderiyoruz
+    const FROM_ADDRESS = "Revium ERP <noreply@tasks.revpad.net>";
 
     const emailPromises = recipientEmails.map(async (email) => {
       const response = await fetch("https://api.resend.com/emails", {
@@ -76,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Revium ERP <noreply@mail.revpad.net>",
+          from: FROM_ADDRESS,
           to: [email],
           subject: `🔔 Yeni Görev Atandı: ${taskTitle}`,
           html,
@@ -85,23 +103,34 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!response.ok) {
         const err = await response.text();
+        console.error("Resend error for", email, err);
         throw new Error(`Resend API error: ${response.status} - ${err}`);
       }
+
       return response.json();
     });
 
     const results = await Promise.allSettled(emailPromises);
 
+    const sent = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    console.log("Email send result:", { sent, failed });
+
     return new Response(
       JSON.stringify({
         success: true,
-        sent: results.filter((r) => r.status === "fulfilled").length,
-        failed: results.filter((r) => r.status === "rejected").length,
+        sent,
+        failed,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
   } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
+    console.error("send-task-notification error:", err);
+    return new Response(JSON.stringify({ success: false, error: err.message || "Unknown error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
