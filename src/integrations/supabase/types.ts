@@ -782,6 +782,8 @@ export type Database = {
           completed_at: string | null
           id: string
           notes: string | null
+          rejection_reason: string | null
+          status: string | null
           task_id: string
         }
         Insert: {
@@ -792,6 +794,8 @@ export type Database = {
           completed_at?: string | null
           id?: string
           notes?: string | null
+          rejection_reason?: string | null
+          status?: string | null
           task_id: string
         }
         Update: {
@@ -802,6 +806,8 @@ export type Database = {
           completed_at?: string | null
           id?: string
           notes?: string | null
+          rejection_reason?: string | null
+          status?: string | null
           task_id?: string
         }
         Relationships: [
@@ -821,6 +827,61 @@ export type Database = {
           },
           {
             foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_attachments: {
+        Row: {
+          assignment_id: string | null
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          file_path: string
+          file_type: string | null
+          id: string
+          task_id: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          file_path: string
+          file_type?: string | null
+          id?: string
+          task_id: string
+        }
+        Update: {
+          assignment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          file_path?: string
+          file_type?: string | null
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_attachments_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "task_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_attachments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_attachments_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
