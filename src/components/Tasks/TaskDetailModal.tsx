@@ -17,6 +17,8 @@ interface AssignedUser {
   accepted_at: string | null;
   declined_at: string | null;
   completed_at: string | null;
+  status: string | null;
+  rejection_reason: string | null;
 }
 
 interface TaskDetailModalProps {
@@ -56,6 +58,8 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
           accepted_at,
           declined_at,
           completed_at,
+          status,
+          rejection_reason,
           assigned_to,
           profiles:assigned_to (
             id,
@@ -75,6 +79,8 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
           accepted_at: a.accepted_at,
           declined_at: a.declined_at,
           completed_at: a.completed_at,
+          status: a.status,
+          rejection_reason: a.rejection_reason,
         })) || [];
 
       setAssignedUsers(users);
@@ -273,14 +279,22 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
                         {assignedUser.email}
                       </div>
 
-                      {assignedUser.declined_at && (
-                        <Badge variant="destructive">Reddedildi</Badge>
-                      )}
-                      {assignedUser.accepted_at && !assignedUser.completed_at && (
-                        <Badge variant="secondary">Kabul Edildi</Badge>
-                      )}
-                      {assignedUser.completed_at && (
-                        <Badge className="bg-success">Tamamlandı</Badge>
+                      <div className="flex gap-2 mt-1">
+                        {assignedUser.status === 'rejected' && (
+                          <Badge variant="destructive">Reddedildi</Badge>
+                        )}
+                        {assignedUser.status === 'accepted' && !assignedUser.completed_at && (
+                          <Badge variant="secondary">Kabul Edildi</Badge>
+                        )}
+                        {assignedUser.status === 'completed' && (
+                          <Badge className="bg-success">Tamamlandı</Badge>
+                        )}
+                      </div>
+                      
+                      {assignedUser.rejection_reason && (
+                        <p className="text-sm text-destructive mt-1">
+                          {assignedUser.rejection_reason}
+                        </p>
                       )}
                     </div>
                   </div>
