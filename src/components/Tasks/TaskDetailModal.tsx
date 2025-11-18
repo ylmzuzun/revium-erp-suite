@@ -15,6 +15,7 @@ interface AssignedUser {
   full_name: string;
   email: string;
   accepted_at: string | null;
+  declined_at: string | null;
   completed_at: string | null;
 }
 
@@ -39,7 +40,6 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
 
   const fetchTaskDetails = async () => {
     try {
-      // Görev detaylarını al
       const { data: taskData, error: taskError } = await supabase
         .from("tasks")
         .select("*")
@@ -49,12 +49,12 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
       if (taskError) throw taskError;
       setTask(taskData);
 
-      // Atanan kullanıcıları al
       const { data: assignments, error: assignError } = await supabase
         .from("task_assignments")
         .select(`
           id,
           accepted_at,
+          declined_at,
           completed_at,
           assigned_to,
           profiles:assigned_to (
@@ -67,13 +67,15 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
 
       if (assignError) throw assignError;
 
-      const users = assignments?.map((a: any) => ({
-        id: a.profiles.id,
-        full_name: a.profiles.full_name,
-        email: a.profiles.email,
-        accepted_at: a.accepted_at,
-        completed_at: a.completed_at,
-      })) || [];
+      const users =
+        assignments?.map((a: any) => ({
+          id: a.profiles.id,
+          full_name: a.profiles.full_name,
+          email: a.profiles.email,
+          accepted_at: a.accepted_at,
+          declined_at: a.declined_at,
+          completed_at: a.completed_at,
+        })) || [];
 
       setAssignedUsers(users);
     } catch (error: any) {
@@ -83,11 +85,49 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
     }
   };
 
+  const handleAssignmentAction = async (
+    userId: string,
+    action: "accept" | "decline" | "complete"
+  ) => {
+    try {
+      const updateData: any = {};
+
+      if (action === "accept") {
+        updateData.accepted_at = new Date().toISOString();
+        updateData.declined_at = null;
+      }
+
+      if (action === "decline") {
+        updateData.declined_at = new Date().toISOString();
+        updateData.accepted_at = null;
+      }
+
+      if (action === "complete") {
+        updateData.completed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from("task_assignments")
+        .update(updateData)
+        .eq("task_id", taskId)
+        .eq("assigned_to", userId);
+
+      if (error) throw error;
+
+      toast.success("Güncellendi");
+      fetchTaskDetails();
+    } catch (err: any) {
+      toast.error("Hata: " + err.message);
+    }
+  };
+
   const handleStatusUpdate = async (newStatus: string) => {
     try {
       const { error } = await supabase
         .from("tasks")
-        .update({ status: newStatus as "pending" | "in_progress" | "completed" | "cancelled" })
+        .update({
+          status: newStatus as "pending" | "in_progress" | "completed" | "cancelled",
+        })
         .eq("id", taskId);
 
       if (error) throw error;
@@ -95,19 +135,6 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
       toast.success("Görev durumu güncellendi");
       setTask({ ...task, status: newStatus });
       onUpdate?.();
-
-      // Görev tamamlandıysa bildirim oluştur
-      if (newStatus === "completed") {
-        const notifications = assignedUsers.map(u => ({
-          user_id: u.id,
-          task_id: taskId,
-          type: "task_completed",
-          title: "Görev Tamamlandı",
-          message: `"${task.title}" görevi tamamlandı.`,
-        }));
-
-        await supabase.from("notifications").insert(notifications);
-      }
     } catch (error: any) {
       toast.error("Durum güncellenirken hata: " + error.message);
     }
@@ -137,7 +164,7 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
   const getInitials = (name: string) => {
     return name
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
@@ -168,7 +195,6 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Durum ve Öncelik */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Durum</label>
@@ -198,7 +224,6 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
             </div>
           </div>
 
-          {/* Açıklama */}
           {task.description && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Açıklama</label>
@@ -208,7 +233,6 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
             </div>
           )}
 
-          {/* Tarihler */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -224,40 +248,84 @@ export const TaskDetailModal = ({ taskId, open, onOpenChange, onUpdate }: TaskDe
             )}
           </div>
 
-          {/* Atanan Kullanıcılar */}
+          {/* Assigned Users */}
           <div className="space-y-3">
             <label className="text-sm font-medium flex items-center gap-2">
               <User className="h-4 w-4" />
               Görevdeki Kişiler ({assignedUsers.length})
             </label>
+
             <div className="space-y-2">
               {assignedUsers.map((assignedUser) => (
                 <div
                   key={assignedUser.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border"
                 >
-                  <Avatar>
-                    <AvatarFallback>
-                      {getInitials(assignedUser.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="font-medium">{assignedUser.full_name}</div>
-                    <div className="text-sm text-muted-foreground">{assignedUser.email}</div>
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback>
+                        {getInitials(assignedUser.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{assignedUser.full_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {assignedUser.email}
+                      </div>
+
+                      {assignedUser.declined_at && (
+                        <Badge variant="destructive">Reddedildi</Badge>
+                      )}
+                      {assignedUser.accepted_at && !assignedUser.completed_at && (
+                        <Badge variant="secondary">Kabul Edildi</Badge>
+                      )}
+                      {assignedUser.completed_at && (
+                        <Badge className="bg-success">Tamamlandı</Badge>
+                      )}
+                    </div>
                   </div>
-                  {assignedUser.completed_at && (
-                    <Badge variant="default" className="bg-success">
-                      Tamamlandı
-                    </Badge>
-                  )}
-                  {assignedUser.accepted_at && !assignedUser.completed_at && (
-                    <Badge variant="secondary">Kabul Edildi</Badge>
-                  )}
-                  {!assignedUser.accepted_at && (
-                    <Badge variant="outline">Bekliyor</Badge>
-                  )}
+
+                  {/* ACTION BUTTONS */}
+                  <div className="flex gap-2">
+                    {!assignedUser.accepted_at &&
+                      !assignedUser.declined_at && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              handleAssignmentAction(assignedUser.id, "accept")
+                            }
+                          >
+                            Kabul Et
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() =>
+                              handleAssignmentAction(assignedUser.id, "decline")
+                            }
+                          >
+                            Reddet
+                          </Button>
+                        </>
+                      )}
+
+                    {assignedUser.accepted_at &&
+                      !assignedUser.completed_at && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() =>
+                            handleAssignmentAction(assignedUser.id, "complete")
+                          }
+                        >
+                          Tamamladım
+                        </Button>
+                      )}
+                  </div>
                 </div>
               ))}
+
               {assignedUsers.length === 0 && (
                 <p className="text-center py-4 text-muted-foreground text-sm">
                   Henüz kimse atanmadı
